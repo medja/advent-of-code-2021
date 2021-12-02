@@ -1,37 +1,48 @@
 use anyhow::Context;
 use std::str::FromStr;
 
-pub async fn part_01() -> anyhow::Result<u32> {
+pub async fn part_01() -> anyhow::Result<i32> {
     let input = crate::http::get("https://adventofcode.com/2021/day/2/input").await?;
-    let mut position = Position::default();
+
+    let mut x = 0i32;
+    let mut y = 0i32;
 
     for line in input.lines() {
-        position.apply(&line.parse()?)
-    }
-
-    Ok(position.x * position.y)
-}
-
-#[derive(Default)]
-struct Position {
-    x: u32,
-    y: u32,
-}
-
-impl Position {
-    fn apply(&mut self, command: &Command) {
-        match command {
-            Command::Forward(amount) => self.x += amount,
-            Command::Down(amount) => self.y += amount,
-            Command::Up(amount) => self.y -= amount,
+        match line.parse::<Command>()? {
+            Command::Forward(amount) => x += amount,
+            Command::Down(amount) => y += amount,
+            Command::Up(amount) => y -= amount,
         }
     }
+
+    Ok(x * y)
+}
+
+pub async fn part_02() -> anyhow::Result<i32> {
+    let input = crate::http::get("https://adventofcode.com/2021/day/2/input").await?;
+
+    let mut x = 0i32;
+    let mut y = 0i32;
+    let mut a = 0i32;
+
+    for line in input.lines() {
+        match line.parse::<Command>()? {
+            Command::Forward(amount) => {
+                x += amount;
+                y += a * amount;
+            }
+            Command::Down(amount) => a += amount,
+            Command::Up(amount) => a -= amount,
+        }
+    }
+
+    Ok(x * y)
 }
 
 enum Command {
-    Forward(u32),
-    Down(u32),
-    Up(u32),
+    Forward(i32),
+    Down(i32),
+    Up(i32),
 }
 
 impl FromStr for Command {
@@ -42,7 +53,7 @@ impl FromStr for Command {
             .split_once(' ')
             .with_context(|| format!("Command `{}` did not contain a space", string))?;
 
-        let amount: u32 = amount.parse()?;
+        let amount = amount.parse()?;
 
         let command = match direction {
             "forward" => Command::Forward(amount),

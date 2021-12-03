@@ -1,13 +1,11 @@
 use anyhow::Context;
 use std::str::FromStr;
 
-pub async fn part_01() -> anyhow::Result<i32> {
-    let input = crate::http::get("https://adventofcode.com/2021/day/2/input").await?;
-
+pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
     let mut x = 0i32;
     let mut y = 0i32;
 
-    for line in input.lines() {
+    for line in input {
         match line.parse::<Command>()? {
             Command::Forward(amount) => x += amount,
             Command::Down(amount) => y += amount,
@@ -18,14 +16,12 @@ pub async fn part_01() -> anyhow::Result<i32> {
     Ok(x * y)
 }
 
-pub async fn part_02() -> anyhow::Result<i32> {
-    let input = crate::http::get("https://adventofcode.com/2021/day/2/input").await?;
-
+pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
     let mut x = 0i32;
     let mut y = 0i32;
     let mut a = 0i32;
 
-    for line in input.lines() {
+    for line in input {
         match line.parse::<Command>()? {
             Command::Forward(amount) => {
                 x += amount;
@@ -59,7 +55,12 @@ impl FromStr for Command {
             "forward" => Command::Forward(amount),
             "down" => Command::Down(amount),
             "up" => Command::Up(amount),
-            _ => return Err(anyhow::anyhow!("{} is not a valid direction", direction)),
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "{} is not a valid direction, expecting forward, down or up",
+                    direction
+                ))
+            }
         };
 
         Ok(command)

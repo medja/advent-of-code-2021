@@ -1,5 +1,8 @@
+use anyhow::Context;
+
 pub async fn get<U: reqwest::IntoUrl>(url: U) -> anyhow::Result<String> {
-    let cookie = format!("session={}", std::env::var("SESSION")?);
+    let session = std::env::var("SESSION").context("SESSION is not defined")?;
+    let cookie = format!("session={}", session);
 
     let response = reqwest::Client::default()
         .get(url)

@@ -7,5 +7,8 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
+lazy_static = "1.4"
+num_enum = "0.5"
+regex = "1.5"
 reqwest = "0.11"
 tokio = { version = "1.14", features = ["full"] }

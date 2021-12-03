@@ -8,6 +8,7 @@ use std::time::Instant;
 
 mod day_01;
 mod day_02;
+mod day_03;
 
 lazy_static! {
     static ref CHALLENGE_PATTERN: Regex =
@@ -22,6 +23,7 @@ lazy_static! {
         builder.insert(Challenge::new(Day01, PartB), box_solution(day_01::part_b));
         builder.insert(Challenge::new(Day02, PartA), box_solution(day_02::part_a));
         builder.insert(Challenge::new(Day02, PartB), box_solution(day_02::part_b));
+        builder.insert(Challenge::new(Day03, PartA), box_solution(day_03::part_a));
 
         builder
     };
@@ -34,6 +36,7 @@ lazy_static! {
 pub enum Day {
     Day01 = 1,
     Day02 = 2,
+    Day03 = 3,
 }
 
 impl Day {
@@ -41,6 +44,7 @@ impl Day {
         match self {
             Day::Day01 => "Sonar Sweep",
             Day::Day02 => "Dive!",
+            Day::Day03 => "Binary Diagnostic",
         }
     }
 

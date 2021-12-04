@@ -103,8 +103,7 @@ impl TryFrom<&[&str]> for Board {
 
         let input = lines
             .iter()
-            .flat_map(|line| line.split(' '))
-            .filter(|number| !number.is_empty())
+            .flat_map(|line| line.split_whitespace())
             .map(|number| number.parse())
             .take(BOARD_SIZE * BOARD_SIZE);
 

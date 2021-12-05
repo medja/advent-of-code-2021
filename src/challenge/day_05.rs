@@ -1,13 +1,22 @@
 use anyhow::Context;
+use std::cmp::Ordering;
 use std::str::FromStr;
 
 const MAP_SIZE: usize = 1000;
 
 pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    count_intersections(input, false)
+}
+
+pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    count_intersections(input, true)
+}
+
+fn count_intersections(input: &[&str], diagonals: bool) -> anyhow::Result<usize> {
     let mut map = Map::new();
 
     for line in input {
-        map.mark_line(&line.parse::<Line>()?);
+        map.mark_line(&line.parse::<Line>()?, diagonals);
     }
 
     Ok(map
@@ -16,7 +25,19 @@ pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
         .count())
 }
 
+#[derive(Eq, PartialEq, Ord, PartialOrd)]
 struct Coordinate(u16, u16);
+
+impl Coordinate {
+    fn x(&self) -> u16 {
+        self.0
+    }
+
+    fn y(&self) -> u16 {
+        self.1
+    }
+}
+
 struct Line(Coordinate, Coordinate);
 
 impl FromStr for Line {
@@ -44,7 +65,13 @@ impl FromStr for Line {
         let x2 = x2.parse()?;
         let y2 = y2.parse()?;
 
-        Ok(Line(Coordinate(x1, y1), Coordinate(x2, y2)))
+        let first = Coordinate(x1, y1);
+        let second = Coordinate(x2, y2);
+
+        match first.cmp(&second) {
+            Ordering::Greater => Ok(Line(second, first)),
+            _ => Ok(Line(first, second)),
+        }
     }
 }
 
@@ -62,22 +89,23 @@ impl Map {
         Map([Point::Empty; MAP_SIZE * MAP_SIZE])
     }
 
-    fn mark_line(&mut self, line: &Line) {
-        if line.0 .0 == line.1 .0 {
-            // same x
-            let min = line.0 .1.min(line.1 .1);
-            let max = line.0 .1.max(line.1 .1);
-
-            for y in min..=max {
-                self.mark_point(Coordinate(line.0 .0, y))
+    fn mark_line(&mut self, line: &Line, diagonals: bool) {
+        if line.0.x() == line.1.x() {
+            for y in line.0.y()..=line.1.y() {
+                self.mark_point(Coordinate(line.0.x(), y))
             }
-        } else if line.0 .1 == line.1 .1 {
-            // same y
-            let min = line.0 .0.min(line.1 .0);
-            let max = line.0 .0.max(line.1 .0);
-
-            for x in min..=max {
-                self.mark_point(Coordinate(x, line.0 .1))
+        } else if line.0.y() == line.1.y() {
+            for x in line.0.x()..=line.1.x() {
+                self.mark_point(Coordinate(x, line.0.y()))
+            }
+        } else if !diagonals {
+        } else if line.0.y() < line.1.y() {
+            for i in 0..=(line.1.x() - line.0.x()) {
+                self.mark_point(Coordinate(line.0.x() + i, line.0.y() + i))
+            }
+        } else {
+            for i in 0..=(line.1.x() - line.0.x()) {
+                self.mark_point(Coordinate(line.0.x() + i, line.0.y() - i))
             }
         }
     }

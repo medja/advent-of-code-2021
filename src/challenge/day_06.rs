@@ -6,7 +6,7 @@ pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
     simulate(input[0], 256)
 }
 
-fn simulate(input: &str, days: usize) -> anyhow::Result<usize> {
+fn simulate(input: &str, days: usize) -> anyhow::Result<u64> {
     let mut counters = Counters::new();
 
     for number in input.split(',') {
@@ -20,11 +20,11 @@ fn simulate(input: &str, days: usize) -> anyhow::Result<usize> {
     Ok(counters.count())
 }
 
-struct Counters([usize; 9]);
+struct Counters([u64; 9]);
 
 impl Counters {
     fn new() -> Self {
-        Counters([0usize; 9])
+        Counters([0u64; 9])
     }
 
     fn add(&mut self, counter: u8) {
@@ -36,7 +36,7 @@ impl Counters {
         self.0[6] += self.0[8];
     }
 
-    fn count(&self) -> usize {
+    fn count(&self) -> u64 {
         self.0.iter().sum()
     }
 }

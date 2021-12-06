@@ -1,11 +1,19 @@
 pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    simulate(input[0], 80)
+}
+
+pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    simulate(input[0], 256)
+}
+
+fn simulate(input: &str, days: usize) -> anyhow::Result<usize> {
     let mut counters = Counters::new();
 
-    for number in input[0].split(',') {
+    for number in input.split(',') {
         counters.add(number.parse()?);
     }
 
-    for _ in 0..80 {
+    for _ in 0..days {
         counters.advance();
     }
 

@@ -16,7 +16,11 @@ fn count_intersections(input: &[&str], diagonals: bool) -> anyhow::Result<usize>
     let mut map = Map::new();
 
     for line in input {
-        map.mark_line(&line.parse::<Line>()?, diagonals);
+        let line = line.parse::<Line>()?;
+
+        if line.is_straight() || diagonals {
+            map.mark_line(&line);
+        }
     }
 
     Ok(map
@@ -25,7 +29,6 @@ fn count_intersections(input: &[&str], diagonals: bool) -> anyhow::Result<usize>
         .count())
 }
 
-#[derive(Eq, PartialEq, Ord, PartialOrd)]
 struct Coordinate(u16, u16);
 
 impl Coordinate {
@@ -39,6 +42,33 @@ impl Coordinate {
 }
 
 struct Line(Coordinate, Coordinate);
+
+impl Line {
+    fn is_straight(&self) -> bool {
+        self.0.x() == self.1.x() || self.0.y() == self.1.y()
+    }
+
+    fn coordinates(&self) -> impl Iterator<Item = Coordinate> {
+        let (sx, dx) = match self.0.x().cmp(&self.1.x()) {
+            Ordering::Less => (1i32, self.1.x() - self.0.x()),
+            Ordering::Equal => (0i32, 0),
+            Ordering::Greater => (-1i32, self.0.x() - self.1.x()),
+        };
+
+        let (sy, dy) = match self.0.y().cmp(&self.1.y()) {
+            Ordering::Less => (1i32, self.1.y() - self.0.y()),
+            Ordering::Equal => (0i32, 0),
+            Ordering::Greater => (-1i32, self.0.y() - self.1.y()),
+        };
+
+        let x = self.0.x() as i32;
+        let y = self.0.y() as i32;
+
+        let delta = dx.max(dy) as i32;
+
+        (0i32..=delta).map(move |i| Coordinate((x + i * sx) as u16, (y + i * sy) as u16))
+    }
+}
 
 impl FromStr for Line {
     type Err = anyhow::Error;
@@ -65,13 +95,7 @@ impl FromStr for Line {
         let x2 = x2.parse()?;
         let y2 = y2.parse()?;
 
-        let first = Coordinate(x1, y1);
-        let second = Coordinate(x2, y2);
-
-        match first.cmp(&second) {
-            Ordering::Greater => Ok(Line(second, first)),
-            _ => Ok(Line(first, second)),
-        }
+        Ok(Line(Coordinate(x1, y1), Coordinate(x2, y2)))
     }
 }
 
@@ -89,34 +113,15 @@ impl Map {
         Map([Point::Empty; MAP_SIZE * MAP_SIZE])
     }
 
-    fn mark_line(&mut self, line: &Line, diagonals: bool) {
-        if line.0.x() == line.1.x() {
-            for y in line.0.y()..=line.1.y() {
-                self.mark_point(Coordinate(line.0.x(), y))
-            }
-        } else if line.0.y() == line.1.y() {
-            for x in line.0.x()..=line.1.x() {
-                self.mark_point(Coordinate(x, line.0.y()))
-            }
-        } else if !diagonals {
-        } else if line.0.y() < line.1.y() {
-            for i in 0..=(line.1.x() - line.0.x()) {
-                self.mark_point(Coordinate(line.0.x() + i, line.0.y() + i))
-            }
-        } else {
-            for i in 0..=(line.1.x() - line.0.x()) {
-                self.mark_point(Coordinate(line.0.x() + i, line.0.y() - i))
-            }
-        }
-    }
+    fn mark_line(&mut self, line: &Line) {
+        for coordinate in line.coordinates() {
+            let point = &mut self.0[coordinate.0 as usize + coordinate.1 as usize * MAP_SIZE];
 
-    fn mark_point(&mut self, coordinate: Coordinate) {
-        let point = &mut self.0[coordinate.0 as usize + coordinate.1 as usize * MAP_SIZE];
-
-        match point {
-            Point::Empty => *point = Point::Single,
-            Point::Single => *point = Point::Multi,
-            Point::Multi => {}
+            match point {
+                Point::Empty => *point = Point::Single,
+                Point::Single => *point = Point::Multi,
+                Point::Multi => {}
+            }
         }
     }
 

@@ -36,6 +36,7 @@ lazy_static! {
         builder.insert(Challenge::new(Day06, PartA), box_solution(day_06::part_a));
         builder.insert(Challenge::new(Day06, PartB), box_solution(day_06::part_b));
         builder.insert(Challenge::new(Day07, PartA), box_solution(day_07::part_a));
+        builder.insert(Challenge::new(Day07, PartB), box_solution(day_07::part_b));
 
         builder
     };

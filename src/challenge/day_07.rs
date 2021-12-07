@@ -1,9 +1,9 @@
+use std::cmp::Ordering;
 use std::num::ParseIntError;
 
 pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
     let mut positions = parse_positions(input[0])?;
-    positions.sort_unstable();
-    let best_position = positions[positions.len() / 2];
+    let best_position = find_median(&mut positions);
     Ok(calculate_cost(&positions, best_position, abs_diff))
 }
 
@@ -37,4 +37,36 @@ fn abs_diff(x: usize, y: usize) -> usize {
     } else {
         x - y
     }
+}
+
+fn find_median(numbers: &mut [usize]) -> usize {
+    let desired_pivot = numbers.len() / 2;
+
+    let mut start = 0;
+    let mut end = numbers.len() - 1;
+
+    loop {
+        let pivot = start + partition(&mut numbers[start..=end]);
+
+        match pivot.cmp(&desired_pivot) {
+            Ordering::Equal => break numbers[pivot],
+            Ordering::Less => start = pivot + 1,
+            Ordering::Greater => end = pivot - 1,
+        }
+    }
+}
+
+fn partition(numbers: &mut [usize]) -> usize {
+    let last_index = numbers.len() - 1;
+    let mut pivot = 0;
+
+    for i in 0..last_index {
+        if numbers[i] < numbers[last_index] {
+            numbers.swap(i, pivot);
+            pivot += 1;
+        }
+    }
+
+    numbers.swap(pivot, last_index);
+    pivot
 }

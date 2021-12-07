@@ -12,6 +12,7 @@ mod day_03;
 mod day_04;
 mod day_05;
 mod day_06;
+mod day_07;
 
 lazy_static! {
     static ref CHALLENGE_PATTERN: Regex =
@@ -34,6 +35,7 @@ lazy_static! {
         builder.insert(Challenge::new(Day05, PartB), box_solution(day_05::part_b));
         builder.insert(Challenge::new(Day06, PartA), box_solution(day_06::part_a));
         builder.insert(Challenge::new(Day06, PartB), box_solution(day_06::part_b));
+        builder.insert(Challenge::new(Day07, PartA), box_solution(day_07::part_a));
 
         builder
     };
@@ -50,6 +52,7 @@ pub enum Day {
     Day04 = 4,
     Day05 = 5,
     Day06 = 6,
+    Day07 = 7,
 }
 
 impl Day {
@@ -63,6 +66,7 @@ impl Day {
             Day04 => "Giant Squid",
             Day05 => "Hydrothermal Venture",
             Day06 => "Lanternfish",
+            Day07 => "The Treachery of Whales",
         }
     }
 

@@ -22,6 +22,26 @@ pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
     Ok(risk_level)
 }
 
+pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    let map = Map::new(input);
+    let mut max = [0usize; 3];
+
+    for size in basin_sizes(&map) {
+        if size > max[2] {
+            max[0] = max[1];
+            max[1] = max[2];
+            max[2] = size;
+        } else if size > max[1] {
+            max[0] = max[1];
+            max[1] = size;
+        } else if size > max[0] {
+            max[0] = size;
+        }
+    }
+
+    Ok(max.iter().product::<usize>())
+}
+
 struct Map {
     width: usize,
     height: usize,
@@ -95,4 +115,48 @@ impl Map {
             self.depths[(x + y * self.width)]
         }
     }
+}
+
+fn basin_sizes(map: &Map) -> impl Iterator<Item = usize> {
+    let mut basin_sizes = vec![0usize];
+    let mut lookbehind = vec![0usize; map.width()];
+
+    for y in 0..map.height() {
+        for x in 0..map.width() {
+            if map.get(x, y) == MAX_DEPTH {
+                lookbehind[x] = 0;
+                continue;
+            }
+
+            let top = lookbehind[x];
+            let left = if x == 0 { 0 } else { lookbehind[x - 1] };
+
+            if left == 0 && top == 0 {
+                // found a potentially new basin
+                lookbehind[x] = basin_sizes.len();
+                basin_sizes.push(1);
+            } else if top == 0 {
+                lookbehind[x] = left;
+                basin_sizes[left] += 1;
+            } else if left == 0 || top == left {
+                // no need to update lookbehind, it's already correct
+                basin_sizes[top] += 1;
+            } else {
+                // looks like we previously detected a new basin that connects to an existing one
+                // invalidate the left basin and add it to the top basin
+                basin_sizes[top] += basin_sizes[left] + 1;
+                basin_sizes[left] = 0;
+
+                for prev in lookbehind[0..x].iter_mut().rev() {
+                    if *prev == left {
+                        *prev = top;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    basin_sizes.into_iter().filter(|size| *size > 0)
 }

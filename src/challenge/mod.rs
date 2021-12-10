@@ -3,7 +3,6 @@ use lazy_static::lazy_static;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use regex::Regex;
 use std::collections::HashMap;
-use std::fmt::Display;
 use std::str::FromStr;
 use std::time::Instant;
 
@@ -16,6 +15,7 @@ mod day_06;
 mod day_07;
 mod day_08;
 mod day_09;
+mod day_10;
 
 lazy_static! {
     static ref CHALLENGE_PATTERN: Regex =
@@ -44,6 +44,7 @@ lazy_static! {
         solutions.add(Day08, PartB, day_08::part_b);
         solutions.add(Day09, PartA, day_09::part_a);
         solutions.add(Day09, PartB, day_09::part_b);
+        solutions.add(Day10, PartA, day_10::part_a);
 
         solutions
     };
@@ -63,6 +64,7 @@ pub enum Day {
     Day07 = 7,
     Day08 = 8,
     Day09 = 9,
+    Day10 = 10,
 }
 
 impl Day {
@@ -79,6 +81,7 @@ impl Day {
             Day07 => "The Treachery of Whales",
             Day08 => "Seven Segment Search",
             Day09 => "Smoke Basin",
+            Day10 => "Syntax Scoring",
         }
     }
 
@@ -197,7 +200,7 @@ impl Solutions {
         Solutions(HashMap::new())
     }
 
-    fn add<R: Display + 'static>(
+    fn add<R: std::fmt::Display + 'static>(
         &mut self,
         day: Day,
         part: Part,

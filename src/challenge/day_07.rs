@@ -19,10 +19,11 @@ fn parse_positions(input: &str) -> Result<Vec<usize>, ParseIntError> {
     input.split(',').map(|value| value.parse()).collect()
 }
 
-fn calculate_cost<F>(positions: &[usize], destination: usize, cost_fn: F) -> usize
-where
-    F: Fn(usize, usize) -> usize,
-{
+fn calculate_cost(
+    positions: &[usize],
+    destination: usize,
+    cost_fn: impl Fn(usize, usize) -> usize,
+) -> usize {
     positions.iter().map(|pos| cost_fn(*pos, destination)).sum()
 }
 

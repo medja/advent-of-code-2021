@@ -11,7 +11,11 @@ const CAVE_SET_MAX_ID: usize = 122;
 const CAVE_SET_SIZE: usize = CAVE_SET_MAX_ID - CAVE_SET_MIN_ID + 1;
 
 pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
-    Ok(Graph::parse(input)?.count_paths())
+    Ok(Graph::parse(input)?.count_paths(false))
+}
+
+pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    Ok(Graph::parse(input)?.count_paths(true))
 }
 
 #[derive(Copy, Clone)]
@@ -34,6 +38,10 @@ impl CaveId {
             5 => CaveId(START_CAVE_ID),
             _ => CaveId(name.as_bytes()[0]),
         }
+    }
+
+    fn is_start(&self) -> bool {
+        self.0 == START_CAVE_ID
     }
 
     fn is_end(&self) -> bool {
@@ -135,18 +143,29 @@ impl Graph {
         Ok(Graph(lookup))
     }
 
-    fn count_paths(&self) -> usize {
+    fn count_paths(&self, mut twice: bool) -> usize {
         let mut visited = CaveLookup::new();
-        self.count_paths_from(CaveId::start(), &mut visited)
+        self.count_paths_from(CaveId::start(), &mut visited, &mut twice)
     }
 
-    fn count_paths_from(&self, id: CaveId, visited: &mut CaveLookup<bool>) -> usize {
+    fn count_paths_from(
+        &self,
+        id: CaveId,
+        visited: &mut CaveLookup<bool>,
+        twice: &mut bool,
+    ) -> usize {
         if id.is_end() {
             return 1;
         }
 
-        if visited[id] {
-            return 0;
+        let second_time = visited[id];
+
+        if second_time {
+            if !*twice || id.is_start() {
+                return 0;
+            } else {
+                *twice = false;
+            }
         }
 
         let cave = &self.0[id];
@@ -159,10 +178,12 @@ impl Graph {
         let count = cave
             .neighbors()
             .iter()
-            .map(|neighbor| self.count_paths_from(*neighbor, visited))
+            .map(|neighbor| self.count_paths_from(*neighbor, visited, twice))
             .sum();
 
-        if is_small {
+        if second_time {
+            *twice = true;
+        } else if is_small {
             visited[id] = false;
         }
 

@@ -13,6 +13,17 @@ pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
     Ok(paper.count_dots())
 }
 
+pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    let mut parts = input.split(|line| line.is_empty());
+    let mut paper = Paper::parse(parts.next().context("Cannot find end of dots")?)?;
+
+    for fold in parts.next().context("Cannot find folds")? {
+        paper.fold(&fold.parse()?);
+    }
+
+    Ok(paper.project())
+}
+
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct Dot(u16, u16);
 
@@ -93,6 +104,10 @@ impl Paper {
         self.0.sort();
         self.0.dedup();
     }
+
+    fn project(&self) -> impl std::fmt::Display {
+        Projection::new(&self.0)
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -126,5 +141,42 @@ impl FromStr for Fold {
         };
 
         Ok(Fold(dir, pos.parse()?))
+    }
+}
+
+struct Projection(String);
+
+impl Projection {
+    fn new(dots: &[Dot]) -> Self {
+        let len_x = dots.iter().map(|p| p.0).max().unwrap_or_default() as usize + 1;
+        let len_y = dots.iter().map(|p| p.1).max().unwrap_or_default() as usize + 1;
+
+        let mut buffer = String::with_capacity((len_x + 1) * len_y);
+        let mut dot_map = vec![false; len_x * len_y];
+
+        for dot in dots {
+            dot_map[dot.x() as usize + dot.y() as usize * len_x] = true;
+        }
+
+        for y in 0..len_y {
+            for x in 0..len_x {
+                if dot_map[x + y * len_x] {
+                    buffer.push('#');
+                } else {
+                    buffer.push('.');
+                }
+            }
+
+            buffer.push('\n');
+        }
+
+        Projection(buffer)
+    }
+}
+
+impl std::fmt::Display for Projection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f)?;
+        self.0.fmt(f)
     }
 }

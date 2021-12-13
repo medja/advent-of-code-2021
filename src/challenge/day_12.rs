@@ -1,14 +1,10 @@
 use anyhow::Context;
-use std::ops::{Index, IndexMut};
+use std::collections::HashMap;
 
 const LOWER_CASE_MASK: u8 = 0x20;
 
-const START_CAVE_ID: u8 = 96;
-const END_CAVE_ID: u8 = 95;
-
-const CAVE_SET_MIN_ID: usize = 65;
-const CAVE_SET_MAX_ID: usize = 122;
-const CAVE_SET_SIZE: usize = CAVE_SET_MAX_ID - CAVE_SET_MIN_ID + 1;
+const START_NODE_ID: usize = 0;
+const END_NODE_ID: usize = 1;
 
 pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
     Ok(Graph::parse(input)?.count_paths(false))
@@ -18,175 +14,196 @@ pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
     Ok(Graph::parse(input)?.count_paths(true))
 }
 
-#[derive(Copy, Clone)]
-enum CaveSize {
-    Small,
-    Big,
+type NodeId = usize;
+
+struct Node {
+    links: Vec<Link>,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
-struct CaveId(u8);
-
-impl CaveId {
-    fn start() -> Self {
-        CaveId(START_CAVE_ID)
+impl Node {
+    fn new(links: Vec<Link>) -> Self {
+        Node { links }
     }
 
-    fn new(name: &str) -> Self {
-        match name.len() {
-            3 => CaveId(END_CAVE_ID),
-            5 => CaveId(START_CAVE_ID),
-            _ => CaveId(name.as_bytes()[0]),
-        }
-    }
-
-    fn is_start(&self) -> bool {
-        self.0 == START_CAVE_ID
-    }
-
-    fn is_end(&self) -> bool {
-        self.0 == END_CAVE_ID
-    }
-
-    fn cave_size(&self) -> CaveSize {
-        if self.0 & LOWER_CASE_MASK == LOWER_CASE_MASK {
-            CaveSize::Small
-        } else {
-            CaveSize::Big
-        }
-    }
-
-    fn cave_hash(&self) -> usize {
-        self.0 as usize - CAVE_SET_MIN_ID
+    fn links(&self) -> &[Link] {
+        &self.links
     }
 }
 
-struct Cave {
-    size: CaveSize,
-    neighbors: Vec<CaveId>,
+struct Link {
+    id: NodeId,
+    paths: usize,
 }
 
-impl Cave {
-    fn new(size: CaveSize) -> Self {
-        let neighbors = Vec::new();
-        Cave { size, neighbors }
+impl Link {
+    fn new(id: NodeId, paths: usize) -> Self {
+        Link { id, paths }
     }
 
-    fn size(&self) -> CaveSize {
-        self.size
+    fn id(&self) -> NodeId {
+        self.id
     }
 
-    fn set_size(&mut self, size: CaveSize) {
-        self.size = size;
-    }
-
-    fn neighbors(&self) -> &[CaveId] {
-        &self.neighbors
-    }
-
-    fn add_neighbor(&mut self, id: CaveId) {
-        self.neighbors.push(id)
+    fn path_count(&self) -> usize {
+        self.paths
     }
 }
 
-struct CaveLookup<T>([T; CAVE_SET_SIZE]);
-
-impl<T: Default + Copy> CaveLookup<T> {
-    fn new() -> Self {
-        CaveLookup([T::default(); CAVE_SET_SIZE])
-    }
+struct Graph {
+    nodes: Vec<Node>,
 }
-
-impl<T> CaveLookup<T> {
-    fn from_fn(f: impl Fn() -> T) -> Self {
-        CaveLookup([0usize; CAVE_SET_SIZE].map(|_| f()))
-    }
-}
-
-impl<T> Index<CaveId> for CaveLookup<T> {
-    type Output = T;
-
-    fn index(&self, index: CaveId) -> &Self::Output {
-        &self.0[index.cave_hash()]
-    }
-}
-
-impl<T> IndexMut<CaveId> for CaveLookup<T> {
-    fn index_mut(&mut self, index: CaveId) -> &mut Self::Output {
-        &mut self.0[index.cave_hash()]
-    }
-}
-
-struct Graph(CaveLookup<Cave>);
 
 impl Graph {
-    fn parse(input: &[&str]) -> anyhow::Result<Self> {
-        let mut lookup = CaveLookup::from_fn(|| Cave::new(CaveSize::Small));
+    fn new(nodes: Vec<Node>) -> Self {
+        Graph { nodes }
+    }
 
-        for line in input {
-            let (left, right) = line
-                .split_once('-')
-                .context("Unexpected end of line, expecting `-`")?;
-
-            let left_id = CaveId::new(left);
-            let right_id = CaveId::new(right);
-
-            let left_cave = &mut lookup[left_id];
-            left_cave.set_size(left_id.cave_size());
-            left_cave.add_neighbor(right_id);
-
-            let right_cave = &mut lookup[right_id];
-            right_cave.set_size(right_id.cave_size());
-            right_cave.add_neighbor(left_id);
-        }
-
-        Ok(Graph(lookup))
+    fn parse(input: &[&str]) -> anyhow::Result<Graph> {
+        Ok(GraphBuilder::new().parse(input)?.build())
     }
 
     fn count_paths(&self, mut twice: bool) -> usize {
-        let mut visited = CaveLookup::new();
-        self.count_paths_from(CaveId::start(), &mut visited, &mut twice)
+        let mut visited = vec![false; self.nodes.len()];
+        self.count_paths_from(START_NODE_ID, &mut visited, &mut twice)
     }
 
-    fn count_paths_from(
-        &self,
-        id: CaveId,
-        visited: &mut CaveLookup<bool>,
-        twice: &mut bool,
-    ) -> usize {
-        if id.is_end() {
+    fn count_paths_from(&self, id: NodeId, visited: &mut [bool], twice: &mut bool) -> usize {
+        if id == END_NODE_ID {
             return 1;
         }
 
         let second_time = visited[id];
 
         if second_time {
-            if !*twice || id.is_start() {
+            if !*twice {
                 return 0;
             } else {
                 *twice = false;
             }
         }
 
-        let cave = &self.0[id];
-        let is_small = matches!(cave.size(), CaveSize::Small);
+        let node = &self.nodes[id];
+        visited[id] = true;
 
-        if is_small {
-            visited[id] = true;
-        }
-
-        let count = cave
-            .neighbors()
+        let count = node
+            .links()
             .iter()
-            .map(|neighbor| self.count_paths_from(*neighbor, visited, twice))
+            .map(|link| link.path_count() * self.count_paths_from(link.id(), visited, twice))
             .sum();
 
         if second_time {
             *twice = true;
-        } else if is_small {
+        } else {
             visited[id] = false;
         }
 
         count
+    }
+}
+
+struct NodeBuilder {
+    small: bool,
+    links: Vec<NodeId>,
+}
+
+impl NodeBuilder {
+    fn new(small: bool) -> Self {
+        let links = Vec::new();
+        NodeBuilder { small, links }
+    }
+
+    fn is_small(&self) -> bool {
+        self.small
+    }
+
+    fn links(&self) -> &[NodeId] {
+        &self.links
+    }
+
+    fn connect(&mut self, id: NodeId) {
+        if id != START_NODE_ID {
+            self.links.push(id)
+        }
+    }
+}
+
+struct GraphBuilder<'a> {
+    ids: HashMap<&'a str, NodeId>,
+    nodes: Vec<NodeBuilder>,
+}
+
+impl<'a> GraphBuilder<'a> {
+    fn new() -> Self {
+        let mut builder = GraphBuilder {
+            ids: HashMap::new(),
+            nodes: Vec::new(),
+        };
+
+        builder.create_node("start"); // START_NODE_ID
+        builder.create_node("end"); // END_NODE_ID
+
+        builder
+    }
+
+    fn parse(mut self, input: &[&'a str]) -> anyhow::Result<Self> {
+        for line in input {
+            let (left, right) = line
+                .split_once('-')
+                .context("Unexpected end of line, expecting `-`")?;
+
+            let left = self.create_node(left);
+            let right = self.create_node(right);
+
+            self.nodes[left].connect(right);
+            self.nodes[right].connect(left);
+        }
+
+        Ok(self)
+    }
+
+    fn build(self) -> Graph {
+        let nodes = self
+            .nodes
+            .iter()
+            .map(|node| self.build_node(node))
+            .collect();
+
+        Graph::new(nodes)
+    }
+
+    fn create_node(&mut self, name: &'a str) -> NodeId {
+        *self.ids.entry(name).or_insert_with(|| {
+            let id = self.nodes.len();
+            let small = name.as_bytes()[0] & LOWER_CASE_MASK != 0;
+            self.nodes.push(NodeBuilder::new(small));
+            id
+        })
+    }
+
+    fn build_node(&self, node: &NodeBuilder) -> Node {
+        if !node.is_small() {
+            return Node::new(Vec::new());
+        }
+
+        let mut links = HashMap::<NodeId, usize>::new();
+
+        for &id in node.links() {
+            let link = &self.nodes[id];
+
+            if link.is_small() {
+                *links.entry(id).or_default() += 1;
+            } else {
+                for &id in link.links() {
+                    *links.entry(id).or_default() += 1;
+                }
+            }
+        }
+
+        let links = links
+            .into_iter()
+            .map(|(id, count)| Link::new(id, count))
+            .collect();
+
+        Node::new(links)
     }
 }

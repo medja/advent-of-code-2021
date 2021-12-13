@@ -41,29 +41,24 @@ impl Coordinate {
 struct Line(Coordinate, Coordinate);
 
 impl Line {
-    fn is_straight(&self) -> bool {
-        self.0.x() == self.1.x() || self.0.y() == self.1.y()
+    fn start_x(&self) -> u16 {
+        self.0.x()
     }
 
-    fn coordinates(&self) -> impl Iterator<Item = Coordinate> {
-        let (sx, dx) = match self.0.x().cmp(&self.1.x()) {
-            Ordering::Less => (1i32, self.1.x() - self.0.x()),
-            Ordering::Equal => (0i32, 0),
-            Ordering::Greater => (-1i32, self.0.x() - self.1.x()),
-        };
+    fn end_x(&self) -> u16 {
+        self.1.x()
+    }
 
-        let (sy, dy) = match self.0.y().cmp(&self.1.y()) {
-            Ordering::Less => (1i32, self.1.y() - self.0.y()),
-            Ordering::Equal => (0i32, 0),
-            Ordering::Greater => (-1i32, self.0.y() - self.1.y()),
-        };
+    fn start_y(&self) -> u16 {
+        self.0.y()
+    }
 
-        let x = self.0.x() as i32;
-        let y = self.0.y() as i32;
+    fn end_y(&self) -> u16 {
+        self.1.y()
+    }
 
-        let delta = dx.max(dy) as i32;
-
-        (0i32..=delta).map(move |i| Coordinate((x + i * sx) as u16, (y + i * sy) as u16))
+    fn is_straight(&self) -> bool {
+        self.0.x() == self.1.x() || self.0.y() == self.1.y()
     }
 }
 
@@ -111,8 +106,58 @@ impl Map {
     }
 
     fn mark_line(&mut self, line: &Line) {
-        for coordinate in line.coordinates() {
-            let point = &mut self.1[coordinate.0 as usize + coordinate.1 as usize * MAP_SIZE];
+        let start_x = line.start_x() as usize;
+        let start_y = line.start_y() as usize;
+        let end_x = line.end_x() as usize;
+        let end_y = line.end_y() as usize;
+
+        let (start, offset, steps) = match start_y.cmp(&end_y) {
+            Ordering::Less => {
+                let start = start_x + start_y * MAP_SIZE;
+                let steps = end_y - start_y;
+
+                let offset = match start_x.cmp(&end_x) {
+                    Ordering::Less => MAP_SIZE + 1,
+                    Ordering::Equal => MAP_SIZE,
+                    Ordering::Greater => MAP_SIZE - 1,
+                };
+
+                (start, offset, steps)
+            }
+            Ordering::Greater => {
+                let start = end_x + end_y * MAP_SIZE;
+                let steps = start_y - end_y;
+
+                let offset = match start_x.cmp(&end_x) {
+                    Ordering::Less => MAP_SIZE - 1,
+                    Ordering::Equal => MAP_SIZE,
+                    Ordering::Greater => MAP_SIZE + 1,
+                };
+
+                (start, offset, steps)
+            }
+            Ordering::Equal => match start_x.cmp(&end_x) {
+                Ordering::Less => {
+                    let start = start_x + start_y * MAP_SIZE;
+                    let steps = end_x - start_x;
+                    (start, 1, steps)
+                }
+                Ordering::Greater => {
+                    let start = end_x + start_y * MAP_SIZE;
+                    let steps = start_x - end_x;
+                    (start, 1, steps)
+                }
+                Ordering::Equal => {
+                    return;
+                }
+            },
+        };
+
+        let end = start + steps * offset;
+        let mut index = start;
+
+        while index <= end {
+            let point = &mut self.1[index];
 
             match point {
                 Point::Empty => *point = Point::Single,
@@ -122,6 +167,8 @@ impl Map {
                 }
                 Point::Multi => {}
             }
+
+            index += offset;
         }
     }
 

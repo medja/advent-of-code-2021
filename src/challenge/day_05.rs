@@ -23,10 +23,7 @@ fn count_intersections(input: &[&str], diagonals: bool) -> anyhow::Result<usize>
         }
     }
 
-    Ok(map
-        .points()
-        .filter(|point| matches!(point, Point::Multi))
-        .count())
+    Ok(map.count_intersections())
 }
 
 struct Coordinate(u16, u16);
@@ -106,26 +103,29 @@ enum Point {
     Multi,
 }
 
-struct Map([Point; MAP_SIZE * MAP_SIZE]);
+struct Map(usize, [Point; MAP_SIZE * MAP_SIZE]);
 
 impl Map {
     fn new() -> Self {
-        Map([Point::Empty; MAP_SIZE * MAP_SIZE])
+        Map(0, [Point::Empty; MAP_SIZE * MAP_SIZE])
     }
 
     fn mark_line(&mut self, line: &Line) {
         for coordinate in line.coordinates() {
-            let point = &mut self.0[coordinate.0 as usize + coordinate.1 as usize * MAP_SIZE];
+            let point = &mut self.1[coordinate.0 as usize + coordinate.1 as usize * MAP_SIZE];
 
             match point {
                 Point::Empty => *point = Point::Single,
-                Point::Single => *point = Point::Multi,
+                Point::Single => {
+                    self.0 += 1;
+                    *point = Point::Multi;
+                }
                 Point::Multi => {}
             }
         }
     }
 
-    fn points(&self) -> impl Iterator<Item = &Point> {
-        self.0.iter()
+    fn count_intersections(&self) -> usize {
+        self.0
     }
 }

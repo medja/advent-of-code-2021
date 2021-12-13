@@ -161,9 +161,9 @@ impl Projection {
         for y in 0..len_y {
             for x in 0..len_x {
                 if dot_map[x + y * len_x] {
-                    buffer.push('#');
+                    buffer.push('█');
                 } else {
-                    buffer.push('.');
+                    buffer.push(' ');
                 }
             }
 

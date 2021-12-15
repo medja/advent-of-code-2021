@@ -2,35 +2,65 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
 pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
-    Ok(Graph::new(input).score_best_path())
+    let weights = input
+        .iter()
+        .flat_map(|line| line.bytes())
+        .map(|byte| byte - b'0')
+        .collect::<Vec<_>>();
+
+    Ok(Graph::new(input.len(), &weights).score_best_path())
 }
 
-struct Graph {
+pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    let size = input.len() * 5;
+    let mut buffer = Vec::with_capacity(input.len());
+    let mut weights = Vec::with_capacity(size * size);
+
+    for &line in input {
+        for byte in line.bytes() {
+            let weight = byte - b'0';
+            buffer.push(weight);
+            weights.push(weight);
+        }
+
+        for i in 1..5 {
+            for weight in &buffer {
+                weights.push((*weight + i - 1) % 9 + 1);
+            }
+        }
+
+        buffer.clear();
+    }
+
+    for i in 1..5 {
+        for index in 0..input.len() * size {
+            weights.push((weights[index] + i - 1) % 9 + 1);
+        }
+    }
+
+    Ok(Graph::new(size, &weights).score_best_path())
+}
+
+struct Graph<'a> {
     size: usize,
-    weights: Vec<u16>,
-    scores: Vec<u16>,
+    weights: &'a [u8],
+    scores: Vec<u32>,
     queue: BinaryHeap<Entry>,
 }
 
-impl Graph {
-    fn new(input: &[&str]) -> Self {
-        let weights = input
-            .iter()
-            .flat_map(|line| line.bytes())
-            .map(|byte| (byte - b'0') as u16)
-            .collect::<Vec<_>>();
-
+impl<'a> Graph<'a> {
+    fn new(size: usize, weights: &'a [u8]) -> Self {
         let length = weights.len();
 
         Graph {
             weights,
-            size: input.len(),
-            scores: vec![u16::MAX; length],
+            size,
+            scores: vec![u32::MAX; length],
             queue: BinaryHeap::new(),
         }
     }
 
-    fn score_best_path(&mut self) -> u16 {
+    fn score_best_path(&mut self) -> u32 {
         let end = self.scores.len() - 1;
 
         self.scores[0] = 0;
@@ -68,8 +98,8 @@ impl Graph {
         self.scores[end]
     }
 
-    fn visit(&mut self, index: usize, parent_score: u16) {
-        let score = parent_score + self.weights[index];
+    fn visit(&mut self, index: usize, parent_score: u32) {
+        let score = parent_score + self.weights[index] as u32;
 
         if score < self.scores[index] {
             self.scores[index] = score;
@@ -80,13 +110,13 @@ impl Graph {
 
 #[derive(Eq, PartialEq)]
 struct Entry {
-    index: u16,
-    score: u16,
+    index: u32,
+    score: u32,
 }
 
 impl Entry {
-    fn new(index: usize, score: u16) -> Self {
-        let index = index as u16;
+    fn new(index: usize, score: u32) -> Self {
+        let index = index as u32;
         Entry { index, score }
     }
 

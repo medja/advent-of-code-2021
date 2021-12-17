@@ -3,32 +3,13 @@ use anyhow::Context;
 const INVALID_TARGET: &str = "Invalid target string";
 
 pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
-    let max_vy = (i16::MAX as f32).sqrt() as i16;
     let target = parse_target(input[0])?;
-
-    let mut best_vy = 0;
-
-    for vx in (1..=target.max_x()).rev() {
-        for vy in (best_vy + 1..max_vy).rev() {
-            match simulate(vx, vy, &target) {
-                Result::Hit => {
-                    if vy > best_vy {
-                        best_vy = vy;
-                    }
-                    break;
-                }
-                Result::OverX => break,
-                _ => {}
-            }
-        }
-    }
-
-    Ok(best_vy * (best_vy + 1) / 2)
+    Ok(target.min_y() * (target.min_y() + 1) / 2)
 }
 
 pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
-    let max_vy = (i16::MAX as f32).sqrt() as i16;
     let target = parse_target(input[0])?;
+    let max_vy = -target.min_y();
 
     let mut count = 0;
 

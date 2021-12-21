@@ -4,10 +4,29 @@ pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
     let result = input
         .iter()
         .map(|line| Number::parse(line))
-        .reduce(|left, right| left + right)
+        .reduce(|left, right| &left + &right)
         .unwrap();
 
     Ok(result.magnitude())
+}
+
+pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    let numbers = input
+        .iter()
+        .map(|line| Number::parse(line))
+        .collect::<Vec<_>>();
+
+    let mut max_magnitude = 0;
+
+    for (i, x) in numbers[..numbers.len() - 1].iter().enumerate() {
+        for y in numbers[i..].iter() {
+            max_magnitude = max_magnitude
+                .max((x + y).magnitude())
+                .max((y + x).magnitude());
+        }
+    }
+
+    Ok(max_magnitude)
 }
 
 #[derive(Copy, Clone)]
@@ -148,7 +167,7 @@ impl Number {
     }
 }
 
-impl Add for Number {
+impl Add for &Number {
     type Output = Number;
 
     fn add(self, rhs: Self) -> Self::Output {

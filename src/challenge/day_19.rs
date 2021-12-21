@@ -33,56 +33,72 @@ const ROTATIONS: [Rotation; 24] = [
 ];
 
 pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
-    let scanners = parse(input);
+    Ok(solve(input).0)
+}
 
-    let mut beacons = scanners[0]
-        .beacons()
-        .iter()
-        .cloned()
-        .collect::<HashSet<_>>();
+pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    let scanners = solve(input).1;
 
-    let mut matched = scanners[0]
+    let max_distance = pairs(&scanners)
+        .map(|(a, b)| (a.x() - b.x()).abs() + (a.y() - b.y()).abs() + (a.z() - b.z()).abs())
+        .max()
+        .unwrap();
+
+    Ok(max_distance)
+}
+
+fn solve(input: &[&str]) -> (usize, Vec<Point>) {
+    let reports = parse(input);
+    let mut beacons = reports[0].beacons().iter().cloned().collect::<HashSet<_>>();
+
+    let mut scanners = Vec::with_capacity(reports.len());
+    scanners.push(Point::new(0, 0, 0));
+
+    let mut matched = reports[0]
         .fingerprint()
-        .map(|(fingerprint, beacons)| (fingerprint, [beacons[0].clone(), beacons[1].clone()]))
+        .map(|(fingerprint, beacons)| (fingerprint, (beacons.0.clone(), beacons.1.clone())))
         .collect::<HashMap<_, _>>();
 
-    let mut unmatched = scanners[1..]
+    let mut unmatched = reports[1..]
         .iter()
-        .map(|scanner| (scanner, scanner.fingerprint().collect::<Vec<_>>()))
+        .map(|report| (report, report.fingerprint().collect::<Vec<_>>()))
         .collect::<Vec<_>>();
 
     while !unmatched.is_empty() {
         let mut still_unmatched = Vec::with_capacity(unmatched.len());
 
-        for (scanner, fingerprints) in unmatched {
-            if let Some(scanner) = solve_scanner(scanner, &fingerprints, &beacons, &matched) {
-                for (fingerprint, beacons) in scanner.fingerprint() {
+        for (report, fingerprints) in unmatched {
+            let result = solve_report(report, &fingerprints, &beacons, &matched);
+
+            if let Some((scanner, report)) = result {
+                for (fingerprint, beacons) in report.fingerprint() {
                     let entry = match matched.entry(fingerprint) {
                         Entry::Occupied(_) => continue,
                         Entry::Vacant(entry) => entry,
                     };
 
-                    entry.insert([beacons[0].clone(), beacons[1].clone()]);
+                    entry.insert((beacons.0.clone(), beacons.1.clone()));
                 }
 
-                beacons.extend(scanner.into_beacons());
+                beacons.extend(report.into_beacons());
+                scanners.push(scanner);
             } else {
-                still_unmatched.push((scanner, fingerprints));
+                still_unmatched.push((report, fingerprints));
             }
         }
 
         unmatched = still_unmatched;
     }
 
-    Ok(beacons.len())
+    (beacons.len(), scanners)
 }
 
-fn solve_scanner(
-    scanner: &Scanner,
-    fingerprints: &[(Fingerprint, [&Beacon; 2])],
-    beacons: &HashSet<Beacon>,
-    matched: &HashMap<Fingerprint, [Beacon; 2]>,
-) -> Option<Scanner> {
+fn solve_report(
+    report: &Report,
+    fingerprints: &[(Fingerprint, (&Point, &Point))],
+    beacons: &HashSet<Point>,
+    matched: &HashMap<Fingerprint, (Point, Point)>,
+) -> Option<(Point, Report)> {
     let pairs = fingerprints
         .iter()
         .filter_map(|(fingerprint, observed)| {
@@ -105,9 +121,9 @@ fn solve_scanner(
             return None;
         }
 
-        let scanner = scanner.transform(rotation, &translation);
+        let report = report.transform(rotation, &translation);
 
-        let count = scanner
+        let count = report
             .beacons()
             .iter()
             .filter(|beacon| beacons.contains(beacon))
@@ -117,24 +133,32 @@ fn solve_scanner(
             previous = Some(rotation);
             None
         } else {
-            Some(scanner)
+            let scanner = &(rotation * &Point::new(0, 0, 0)) + &translation;
+            Some((scanner, report))
         }
     })
 }
 
 fn find_rotation(
-    observed: &[&Beacon; 2],
-    known: &[Beacon; 2],
-) -> Option<(&'static Rotation, Beacon)> {
+    observed: &(&Point, &Point),
+    known: &(Point, Point),
+) -> Option<(&'static Rotation, Point)> {
     ROTATIONS
         .iter()
         .find(|&rotation| {
-            &known[0] - &(rotation * observed[0]) == &known[1] - &(rotation * observed[1])
+            &known.0 - &(rotation * observed.0) == &known.1 - &(rotation * observed.1)
         })
-        .map(|rotation| (rotation, &known[0] - &(rotation * observed[0])))
+        .map(|rotation| (rotation, &known.0 - &(rotation * observed.0)))
 }
 
-fn parse(input: &[&str]) -> Vec<Scanner> {
+fn pairs<T>(items: &[T]) -> impl Iterator<Item = (&T, &T)> {
+    items
+        .iter()
+        .enumerate()
+        .flat_map(|(i, a)| items[i..].iter().map(move |b| (a, b)))
+}
+
+fn parse(input: &[&str]) -> Vec<Report> {
     input
         .split(|line| line.is_empty())
         .map(|input| {
@@ -144,11 +168,11 @@ fn parse(input: &[&str]) -> Vec<Scanner> {
                     let (x, line) = line.split_once(',').unwrap();
                     let (y, z) = line.split_once(',').unwrap();
 
-                    Beacon::new(x.parse().unwrap(), y.parse().unwrap(), z.parse().unwrap())
+                    Point::new(x.parse().unwrap(), y.parse().unwrap(), z.parse().unwrap())
                 })
                 .collect();
 
-            Scanner::new(beacons)
+            Report::new(beacons)
         })
         .collect()
 }
@@ -156,11 +180,11 @@ fn parse(input: &[&str]) -> Vec<Scanner> {
 type Fingerprint = usize;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
-struct Beacon(i16, i16, i16);
+struct Point(i16, i16, i16);
 
-impl Beacon {
+impl Point {
     fn new(x: i16, y: i16, z: i16) -> Self {
-        Beacon(x, y, z)
+        Point(x, y, z)
     }
 
     fn x(&self) -> i16 {
@@ -184,19 +208,19 @@ impl Beacon {
     }
 }
 
-impl Add for &Beacon {
-    type Output = Beacon;
+impl Add for &Point {
+    type Output = Point;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Beacon(self.0 + rhs.0, self.1 + rhs.1, self.2 + rhs.2)
+        Point(self.0 + rhs.0, self.1 + rhs.1, self.2 + rhs.2)
     }
 }
 
-impl Sub for &Beacon {
-    type Output = Beacon;
+impl Sub for &Point {
+    type Output = Point;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Beacon(self.0 - rhs.0, self.1 - rhs.1, self.2 - rhs.2)
+        Point(self.0 - rhs.0, self.1 - rhs.1, self.2 - rhs.2)
     }
 }
 
@@ -208,10 +232,10 @@ impl Rotation {
     }
 }
 
-impl Mul<&Beacon> for &Rotation {
-    type Output = Beacon;
+impl Mul<&Point> for &Rotation {
+    type Output = Point;
 
-    fn mul(self, rhs: &Beacon) -> Self::Output {
+    fn mul(self, rhs: &Point) -> Self::Output {
         let sx = rhs.x();
         let sy = rhs.y();
         let sz = rhs.z();
@@ -220,40 +244,36 @@ impl Mul<&Beacon> for &Rotation {
         let y = self.0[3] * sx + self.0[4] * sy + self.0[5] * sz;
         let z = self.0[6] * sx + self.0[7] * sy + self.0[8] * sz;
 
-        Beacon::new(x, y, z)
+        Point::new(x, y, z)
     }
 }
 
-struct Scanner(Vec<Beacon>);
+struct Report(Vec<Point>);
 
-impl Scanner {
-    fn new(beacons: Vec<Beacon>) -> Self {
-        Scanner(beacons)
+impl Report {
+    fn new(beacons: Vec<Point>) -> Self {
+        Report(beacons)
     }
 
-    fn beacons(&self) -> &[Beacon] {
+    fn beacons(&self) -> &[Point] {
         &self.0
     }
 
-    fn into_beacons(self) -> Vec<Beacon> {
+    fn into_beacons(self) -> Vec<Point> {
         self.0
     }
 
-    fn transform(&self, rotation: &Rotation, translation: &Beacon) -> Self {
+    fn transform(&self, rotation: &Rotation, translation: &Point) -> Self {
         let beacons = self
             .0
             .iter()
             .map(|beacon| &(rotation * beacon) + translation)
             .collect::<Vec<_>>();
 
-        Scanner(beacons)
+        Report(beacons)
     }
 
-    fn fingerprint(&self) -> impl Iterator<Item = (Fingerprint, [&Beacon; 2])> + '_ {
-        self.0[..self.0.len() - 1]
-            .iter()
-            .enumerate()
-            .flat_map(|(i, a)| self.0[i..].iter().map(move |b| (a, b)))
-            .map(|(a, b)| (a.fingerprint(b), [a, b]))
+    fn fingerprint(&self) -> impl Iterator<Item = (Fingerprint, (&Point, &Point))> {
+        pairs(&self.0).map(|(a, b)| (a.fingerprint(b), (a, b)))
     }
 }

@@ -13,6 +13,17 @@ pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
     Ok(image.count_lit_pixels())
 }
 
+pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    let algorithm = Algorithm::new(input[0]);
+    let mut image = Image::from_str(&input[2..]);
+
+    for _ in 0..50 {
+        image.enhance(&algorithm);
+    }
+
+    Ok(image.count_lit_pixels())
+}
+
 struct Algorithm([bool; VALUE_COUNT]);
 
 impl Algorithm {
@@ -46,19 +57,19 @@ struct Image {
 
 impl Image {
     fn from_str(input: &[&str]) -> Self {
-        let width = input[0].len() + 6;
-        let height = input.len() + 6;
+        let width = input[0].len() + 4;
+        let height = input.len() + 4;
         let lit_value = true;
 
         let mut pixels = Vec::with_capacity(width * height);
-        pixels.extend(std::iter::repeat(false).take(width * 3 - 3));
+        pixels.extend(std::iter::repeat(false).take(width * 2 - 2));
 
         for line in input {
-            pixels.extend(std::iter::repeat(false).take(6));
+            pixels.extend(std::iter::repeat(false).take(4));
             pixels.extend(line.bytes().map(|byte| byte == b'#'));
         }
 
-        pixels.extend(std::iter::repeat(false).take(width * 3 + 3));
+        pixels.extend(std::iter::repeat(false).take(width * 2 + 2));
 
         Image {
             width,
@@ -76,24 +87,32 @@ impl Image {
     }
 
     fn enhance(&mut self, algorithm: &Algorithm) {
+        let width = self.width + 2;
+        let height = self.height + 2;
+
         let lit_value = if algorithm[0] {
             !self.lit_value
         } else {
             self.lit_value
         };
 
-        let mut pixels = vec![false; self.pixels.len()];
+        let mut pixels = vec![false; width * height];
 
         for y in 1..(self.height - 1) {
-            let index = y * self.width;
+            let src_index = y * self.width;
+            let dst_index = (y + 1) * width;
 
             for x in 1..(self.width - 1) {
-                let index = x + index;
-                let count = self.count_surrounding_lit_pixels(index);
-                pixels[index] = algorithm[count] == lit_value;
+                let src_index = x + src_index;
+                let dst_index = x + 1 + dst_index;
+
+                let count = self.count_surrounding_lit_pixels(src_index);
+                pixels[dst_index] = algorithm[count] == lit_value;
             }
         }
 
+        self.width = width;
+        self.height = height;
         self.lit_value = lit_value;
         self.pixels = pixels;
     }

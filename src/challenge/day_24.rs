@@ -5,6 +5,8 @@ const REGISTER_COUNT: usize = 4;
 const REGISTER_Z: Register = Register(3);
 
 const DIGIT_COUNT: usize = 14;
+const MIN_DIGIT_RANGE: [isize; 9] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+const MAX_DIGIT_RANGE: [isize; 9] = [9, 8, 7, 6, 5, 4, 3, 2, 1];
 
 /// MONAD consists of a set of 14 blocks of instructions (of the same length)
 /// Each block will read the input into `w`, and compute a few values
@@ -48,6 +50,14 @@ const DIGIT_COUNT: usize = 14;
 /// ```
 
 pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    solve(&MAX_DIGIT_RANGE, input)
+}
+
+pub fn part_b(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
+    solve(&MIN_DIGIT_RANGE, input)
+}
+
+fn solve(digit_rage: &[isize; 9], input: &[&str]) -> anyhow::Result<u64> {
     let instructions = input
         .iter()
         .map(|line| line.parse())
@@ -61,12 +71,10 @@ pub fn part_a(input: &[&str]) -> anyhow::Result<impl std::fmt::Display> {
     let mut digits = [0; DIGIT_COUNT];
 
     for pair in pairs {
-        solve_pair(pair, &mut digits, &blocks);
+        solve_pair(digit_rage, pair, &mut digits, &blocks);
     }
 
-    Ok(digits
-        .iter()
-        .fold(0u64, |acc, digit| acc * 10 + *digit as u64))
+    Ok(digits.iter().fold(0, |acc, digit| acc * 10 + *digit as u64))
 }
 
 fn find_pairs(blocks: &[&[Instruction]]) -> Vec<(usize, usize)> {
@@ -89,12 +97,17 @@ fn find_pairs(blocks: &[&[Instruction]]) -> Vec<(usize, usize)> {
     pairs
 }
 
-fn solve_pair(pair: (usize, usize), digits: &mut [u8], blocks: &[&[Instruction]]) {
+fn solve_pair(
+    digit_rage: &[isize; 9],
+    pair: (usize, usize),
+    digits: &mut [u8],
+    blocks: &[&[Instruction]],
+) {
     let add_block = blocks[pair.0];
     let reduce_block = blocks[pair.1];
 
-    for add_value in (1..=9).rev() {
-        for reduce_value in (1..=9).rev() {
+    for &add_value in digit_rage {
+        for &reduce_value in digit_rage {
             let inputs = [add_value, reduce_value];
             let mut vm = VirtualMachine::new(&inputs);
 
